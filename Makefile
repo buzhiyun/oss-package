@@ -23,11 +23,13 @@ build-all: build-linux build-windows
 
 package-linux: build-linux
 	cp config.yaml bin/
+	mkdir -p output
 	tar -C bin/ -cJvf output/${BINARY}_linux_x86_64.tar.xz ${BINARY} config.yaml
 	rm -rf bin/config.yaml
 
 package-windows: build-windows
 	cp config.yaml bin/
+	mkdir -p output
 	tar -C bin/ -cJvf output/${BINARY}_windows_x86_64.tar.xz ${BINARY}.exe config.yaml
 	rm -rf bin/config.yaml
 
