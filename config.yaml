@@ -4,7 +4,7 @@ oss:
   # https://help.aliyun.com/zh/dns/how-can-the-speed-limit-of-ecs-dns-query-requests
   # endpoint: "http://oss-cn-hangzhou-internal.aliyuncs.com"    # 内网访问oss，可以用http
   endpoint: "oss-cn-hangzhou.aliyuncs.com"
-  # accessKeyId: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-  # accessKeySecret: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  accessKeyId: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  accessKeySecret: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 
 
