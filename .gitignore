@@ -1,0 +1,5 @@
+vendor/
+*_test.go
+*_ignore.go
+bin/
+output/

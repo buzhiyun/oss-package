@@ -1,0 +1,10 @@
+oss:
+  region: "cn-hangzhou"    # oss区域 必须配置
+  # 由于阿里云有dns查询有限制，所以尽量把Bucket域名给绑定在hosts文件上，否则并发高的下载容易触发ECS解析查询熔断
+  # https://help.aliyun.com/zh/dns/how-can-the-speed-limit-of-ecs-dns-query-requests
+  # endpoint: "http://oss-cn-hangzhou-internal.aliyuncs.com"    # 内网访问oss，可以用http
+  endpoint: "oss-cn-hangzhou.aliyuncs.com"
+  # accessKeyId: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  # accessKeySecret: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+
+
