@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"runtime"
 
 	"github.com/buzhiyun/go-utils/log"
 	"github.com/buzhiyun/oss-package/pkg/zip"
@@ -14,6 +15,11 @@ func main() {
 	uploadThreadCount := flag.Int("ut", 3, "上传线程数")
 	debug := flag.Bool("debug", false, "debug日志")
 	flag.Parse()
+
+	// windows 关闭日志颜色
+	if runtime.GOOS == "windows" {
+		log.DisableColor()
+	}
 
 	if *debug {
 		log.SetLevel("debug")
