@@ -69,6 +69,6 @@ func getFileInfo(obj oss2.ObjectProperties) fs.FileInfo {
 		name:    name,
 		isDir:   isDir,
 		size:    obj.Size,
-		modTime: oss2.ToTime(obj.TransitionTime),
+		modTime: oss2.ToTime(obj.LastModified),
 	}
 }

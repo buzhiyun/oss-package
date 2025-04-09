@@ -3,7 +3,7 @@ CGO = CGO_ENABLED=0
 GOARCH = GOARCH=amd64
 LINUX_GOOS = GOOS=linux
 WINDOWS_GOOS = GOOS=windows
-BINARY = package-oss
+BINARY = package-fx
 LDFLAGS := -s -w
 
 

@@ -22,13 +22,14 @@ type srcOssFile struct {
 }
 
 type zipOssToOss struct {
-	srcBucketName       string
-	srcPrefix           string
+	srcBucketName string
+	// srcPrefix           string
 	zipBucketName       string
 	zipFileKey          string
+	zipfileInfo         GetZipfileInfo             //  获取zip文件列表实体
 	downloadThreadCount int                        // 下载线程数
 	uploadThreadCount   int                        // 上传线程数
-	downloadChan        chan oss2.ObjectProperties // 下载队列
+	downloadChan        chan oss2.ObjectProperties // 下载队列    ，给下载线程用的，实际下载线程会用到 oss2.ObjectProperties 里面的 Key  Size  LastModified  三个属性
 	zipChan             chan srcOssFile            // 压缩队列
 	wg                  sync.WaitGroup
 	zipWg               sync.WaitGroup
@@ -37,8 +38,7 @@ type zipOssToOss struct {
 /**
  * 初始化oss打包实例
  */
-func NewZipOssToOss(ossPrefix string, zipFileKey string, downloadThreadCount, uploadThreadCount int) (z *zipOssToOss, err error) {
-	_path := strings.SplitN(ossPrefix, "/", 2)
+func NewZipOssToOss(srcBucketName, zipFileKey string, downloadThreadCount, uploadThreadCount int, zipfileInfoInstance GetZipfileInfo) (z *zipOssToOss, err error) {
 	_zippath := strings.SplitN(zipFileKey, "/", 2)
 
 	if downloadThreadCount == 0 || uploadThreadCount == 0 {
@@ -47,19 +47,19 @@ func NewZipOssToOss(ossPrefix string, zipFileKey string, downloadThreadCount, up
 		return
 	}
 
-	if len(_path) == 2 && len(_zippath) == 2 {
-		srcBucketName := _path[0]
-		srcPrefix := _path[1]
+	if len(_zippath) == 2 {
+		// srcBucketName := _path[0]
+		// srcPrefix := _path[1]
 
 		zipBucketName := _zippath[0]
 		zipKey := _zippath[1]
 		return &zipOssToOss{
 			srcBucketName:       srcBucketName,
-			srcPrefix:           srcPrefix,
 			zipBucketName:       zipBucketName,
 			zipFileKey:          zipKey,
 			downloadThreadCount: downloadThreadCount,
 			uploadThreadCount:   uploadThreadCount,
+			zipfileInfo:         zipfileInfoInstance,
 			downloadChan:        make(chan oss2.ObjectProperties, downloadThreadCount*2),
 			zipChan:             make(chan srcOssFile, downloadThreadCount*2),
 		}, nil
@@ -121,12 +121,16 @@ func (z *zipOssToOss) Zip() {
 		}(i)
 	}
 
-	// 列举oss目录下的文件
+	// 去拿oss目录下的文件列表
 	z.wg.Add(1)
 	go func() {
-		oss.ListPathWithHandle(z.srcBucketName, z.srcPrefix, func(obj oss2.ObjectProperties) {
-			log.Debugf("获取到 %s", *obj.Key)
-			z.downloadChan <- obj
+		// oss.ListPathWithHandle(z.srcBucketName, z.srcPrefix, func(obj oss2.ObjectProperties) {
+		// 	log.Debugf("获取到 %s", *obj.Key)
+		// 	z.downloadChan <- obj
+		// })
+		z.zipfileInfo.ListFileInfo(func(obj *oss2.ObjectProperties) {
+			log.Debugf("获取到 %s", obj.Key)
+			z.downloadChan <- *obj
 		})
 		z.wg.Done()
 		// 关闭下载队列，让下载线程正常退出
@@ -151,8 +155,8 @@ func (z *zipOssToOss) Zip() {
 				header, _ := zip.FileInfoHeader(fi)
 
 				// 这地方要改
-				// header.Name = fi.Name()
-				header.Name = strings.TrimPrefix(*srcFile.objKey, z.srcPrefix)
+				header.Name = fi.Name()
+				// header.Name = strings.TrimPrefix(*srcFile.objKey, z.srcPrefix)
 				header.Name = strings.TrimPrefix(header.Name, "/")
 				// 判断：文件是不是文件夹
 				if !fi.IsDir() {

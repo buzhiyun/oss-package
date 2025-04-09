@@ -12,7 +12,7 @@ type ObjDownloader struct {
 }
 
 func (d *ObjDownloader) GetId() string {
-	return fmt.Sprint("%d", d.id)
+	return fmt.Sprintf("%v", d.id)
 }
 
 func NewObjDownloader(id int) *ObjDownloader {

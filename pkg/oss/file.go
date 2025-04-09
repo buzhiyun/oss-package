@@ -56,6 +56,22 @@ func GetObjReader(bucketName, objectName string) (reader io.ReadCloser, err erro
 	return result.Body, nil
 }
 
+func GetObjMeta(bucketName, objectName string, client ...*oss.Client) (result *oss.GetObjectMetaResult, err error) {
+	// 创建获取对象元数据的请求
+	request := &oss.GetObjectMetaRequest{
+		Bucket: oss.Ptr(bucketName), // 存储空间名称
+		Key:    oss.Ptr(objectName), // 对象名称
+	}
+
+	// 执行获取对象元数据的操作并处理结果
+	result, err = ossClient(client...).GetObjectMeta(context.TODO(), request)
+	if err != nil {
+		log.Errorf("获取 object meta 异常 %s/%s , %v", err)
+	}
+
+	return
+}
+
 func ListPathWithHandle(bucketName, prefix string, handle func(obj oss.ObjectProperties)) {
 	// 创建列出对象的请求
 	request := &oss.ListObjectsV2Request{
