@@ -3,6 +3,7 @@ package oss
 import (
 	"context"
 	"io"
+	"time"
 
 	"github.com/aliyun/alibabacloud-oss-go-sdk-v2/oss"
 	"github.com/buzhiyun/go-utils/log"
@@ -109,4 +110,19 @@ func ListPathWithHandle(bucketName, prefix string, handle func(obj oss.ObjectPro
 		}
 	}
 
+}
+
+func SignObj(bucketName, objectName string, expire time.Duration, client ...*oss.Client) (url string) {
+	result, err := ossClient(client...).Presign(context.TODO(), &oss.GetObjectRequest{
+		Bucket: oss.Ptr(bucketName),
+		Key:    oss.Ptr(objectName),
+	},
+		oss.PresignExpires(expire),
+	)
+	if err != nil {
+		log.Errorf("[oss] 获取签名失败, %v", err)
+	} else {
+		url = result.URL
+	}
+	return
 }

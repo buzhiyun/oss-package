@@ -12,11 +12,11 @@ LDFLAGS := -s -w
 # build-linux: 
 build-linux:
 	GOPROXY=https://goproxy.cn,direct GO111MODULE=on ${GOEXEC} mod vendor
-	${CGO} ${GOARCH} ${LINUX_GOOS} ${GOEXEC} build  -mod=mod  -ldflags "$(LDFLAGS)" -o bin/${BINARY} cmd/package-oss/main.go
+	${CGO} ${GOARCH} ${LINUX_GOOS} ${GOEXEC} build  -mod=mod  -ldflags "$(LDFLAGS)" -o bin/${BINARY} cmd/package-fx/main.go
 
 build-windows:
 	GOPROXY=https://goproxy.cn,direct GO111MODULE=on ${GOEXEC} mod vendor
-	${CGO} ${GOARCH} ${WINDOWS_GOOS} ${GOEXEC} build  -mod=mod  -ldflags "$(LDFLAGS)" -o bin/${BINARY}.exe cmd/package-oss/main.go
+	${CGO} ${GOARCH} ${WINDOWS_GOOS} ${GOEXEC} build  -mod=mod  -ldflags "$(LDFLAGS)" -o bin/${BINARY}.exe cmd/package-fx/main.go
 
 build-all: build-linux build-windows
 

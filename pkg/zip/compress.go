@@ -11,13 +11,13 @@ import (
 
 	"github.com/buzhiyun/oss-package/pkg/oss"
 
-	oss2 "github.com/aliyun/alibabacloud-oss-go-sdk-v2/oss"
 	"github.com/buzhiyun/go-utils/log"
 )
 
-type srcOssFile struct {
-	fileInfo *fs.FileInfo
-	objKey   *string
+type SrcOssFile struct {
+	FileInfo fs.FileInfo // 给 zip 压缩header 用的
+	ZipDir   *string     // 给 zip 压缩所在的目录
+	ObjKey   *string     // oss文件key
 	data     *[]byte
 }
 
@@ -26,11 +26,11 @@ type zipOssToOss struct {
 	// srcPrefix           string
 	zipBucketName       string
 	zipFileKey          string
-	zipfileInfo         GetZipfileInfo             //  获取zip文件列表实体
-	downloadThreadCount int                        // 下载线程数
-	uploadThreadCount   int                        // 上传线程数
-	downloadChan        chan oss2.ObjectProperties // 下载队列    ，给下载线程用的，实际下载线程会用到 oss2.ObjectProperties 里面的 Key  Size  LastModified  三个属性
-	zipChan             chan srcOssFile            // 压缩队列
+	zipfileInfo         GetZipfileInfo  //  获取zip文件列表实体
+	downloadThreadCount int             // 下载线程数
+	uploadThreadCount   int             // 上传线程数
+	downloadChan        chan SrcOssFile // 下载队列    ，给下载线程用的，实际下载线程会用到 oss2.ObjectProperties 里面的 Key  Size  LastModified  三个属性
+	zipChan             chan SrcOssFile // 压缩队列
 	wg                  sync.WaitGroup
 	zipWg               sync.WaitGroup
 }
@@ -60,8 +60,8 @@ func NewZipOssToOss(srcBucketName, zipFileKey string, downloadThreadCount, uploa
 			downloadThreadCount: downloadThreadCount,
 			uploadThreadCount:   uploadThreadCount,
 			zipfileInfo:         zipfileInfoInstance,
-			downloadChan:        make(chan oss2.ObjectProperties, downloadThreadCount*2),
-			zipChan:             make(chan srcOssFile, downloadThreadCount*2),
+			downloadChan:        make(chan SrcOssFile, downloadThreadCount*2),
+			zipChan:             make(chan SrcOssFile, downloadThreadCount*2),
 		}, nil
 	}
 	err = errors.New("[zip] 压缩文件路径错误")
@@ -72,20 +72,34 @@ func NewZipOssToOss(srcBucketName, zipFileKey string, downloadThreadCount, uploa
 /**
  * 下载oss文件
  */
-func (z *zipOssToOss) downloadOssObj(obj oss2.ObjectProperties, dl *oss.ObjDownloader) {
+func (z *zipOssToOss) downloadOssObj(obj *SrcOssFile, dl *oss.ObjDownloader) {
 	// log.Infof("[zip] 下载文件")
-	data, err := dl.Download(z.srcBucketName, *obj.Key)
+	data, err := dl.Download(z.srcBucketName, *obj.ObjKey)
 	if err != nil {
 		log.Errorf("[zip] downloadThread-%v 下载文件失败", dl.GetId())
 		return
 	}
 	// 丢入压缩队列
-	fi := getFileInfo(obj)
-	z.zipChan <- srcOssFile{
-		data:     &data,
-		objKey:   obj.Key,
-		fileInfo: &fi,
+	// fi := getFileInfo(obj)
+	obj.data = &data
+	z.zipChan <- *obj
+}
+
+func zipDirHandle(dirMap *map[string]any, dir string, handle func(dir string)) {
+	if _, ok := (*dirMap)[dir]; ok {
+		return
 	}
+
+	//递归查找上级目录
+	_dir := strings.Split(dir, "/")
+	if len(_dir) > 1 {
+		parentDir := strings.Join(_dir[:len(_dir)-1], "/")
+		// log.Debugf("dir: %s , parentDir: %s", dir, parentDir)
+		zipDirHandle(dirMap, parentDir, handle)
+	}
+
+	handle(dir)
+	(*dirMap)[dir] = 1
 }
 
 /**
@@ -115,7 +129,7 @@ func (z *zipOssToOss) Zip() {
 						log.Infof("[zip] downloadThread-%v 下载文件任务完成", i)
 						return
 					}
-					z.downloadOssObj(srcFile, dl)
+					z.downloadOssObj(&srcFile, dl)
 				}
 			}
 		}(i)
@@ -128,8 +142,8 @@ func (z *zipOssToOss) Zip() {
 		// 	log.Debugf("获取到 %s", *obj.Key)
 		// 	z.downloadChan <- obj
 		// })
-		z.zipfileInfo.ListFileInfo(func(obj *oss2.ObjectProperties) {
-			log.Debugf("获取到 %s", obj.Key)
+		z.zipfileInfo.ListFileInfo(func(obj *SrcOssFile) {
+			log.Debugf("获取到 %s", *obj.ObjKey)
 			z.downloadChan <- *obj
 		})
 		z.wg.Done()
@@ -141,6 +155,8 @@ func (z *zipOssToOss) Zip() {
 	log.Info("启动压缩线程")
 	z.zipWg.Add(1)
 	go func() {
+		// var zipDirMap = make(map[string]any)
+		// var currentDir string
 		for {
 			select {
 			case srcFile, ok := <-z.zipChan:
@@ -150,14 +166,27 @@ func (z *zipOssToOss) Zip() {
 					return
 				}
 
-				log.Debugf("[zip] 压缩 %s", *srcFile.objKey)
-				fi := *srcFile.fileInfo
+				// currentDir = *srcFile.ZipDir
+
+				log.Debugf("[zip] 压缩 %s %s", *srcFile.ZipDir, *srcFile.ObjKey)
+				fi := srcFile.FileInfo
+
+				// //检查创建目录
+				// zipDirHandle(&zipDirMap, currentDir, func(dir string) {
+				// 	// 可能有问题
+				// 	dirInfo := NewZipFileInfo(true, dir, 1024, fi.ModTime(), fs.ModeDir|fs.ModePerm)
+				// 	dirHeader, _ := zip.FileInfoHeader(dirInfo)
+				// 	log.Infof("[zip] 创建目录 %s , %v", dirInfo.Name(), dirInfo.IsDir())
+				// 	archive.CreateHeader(dirHeader)
+				// })
+
 				header, _ := zip.FileInfoHeader(fi)
 
 				// 这地方要改
 				header.Name = fi.Name()
 				// header.Name = strings.TrimPrefix(*srcFile.objKey, z.srcPrefix)
 				header.Name = strings.TrimPrefix(header.Name, "/")
+
 				// 判断：文件是不是文件夹
 				if !fi.IsDir() {
 					// 设置：zip的文件压缩算法
@@ -168,6 +197,7 @@ func (z *zipOssToOss) Zip() {
 
 				// 创建：压缩包头部信息
 				writer, err := archive.CreateHeader(header)
+				log.Debugf("[zip] 创建 %s", header.Name)
 				if err != nil {
 					log.Errorf("[zip] 创建 %s 异常: %v", header.Name, err)
 					break
@@ -177,7 +207,6 @@ func (z *zipOssToOss) Zip() {
 					br := bytes.NewReader(*srcFile.data)
 					io.Copy(writer, br)
 				}
-
 			}
 		}
 	}()

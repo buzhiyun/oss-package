@@ -8,3 +8,5 @@ oss:
   accessKeySecret: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 
 
+fx:
+  api: http://vfs.stg1:7011

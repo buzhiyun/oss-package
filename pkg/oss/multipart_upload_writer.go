@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/aliyun/alibabacloud-oss-go-sdk-v2/oss"
 	"github.com/buzhiyun/go-utils/log"
@@ -222,4 +224,5 @@ func (uw *multipartUploadWriter) Finished() {
 	// 打印完成分片上传的结果
 	log.Infof("[UploadWriter] 结束分片上传请求结果 key: %s , Status: %s", *result.Key, result.Status)
 
+	log.Infof("下载地址 %s", strings.ReplaceAll(SignObj(uw.bucketName, *result.Key, time.Hour*48), "-internal.aliyuncs.com", ".aliyuncs.com"))
 }

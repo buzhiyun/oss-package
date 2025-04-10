@@ -12,41 +12,52 @@ import (
  * 把oss obj的文件信息转化成 fs.FileInfo
  */
 
-type ossObjInfo struct {
+type zipFileInfo struct {
 	// fs.FileInfo
 	isDir   bool
 	name    string
 	size    int64
 	modTime time.Time
+	mode    fs.FileMode
 }
 
 // IsDir implements fs.FileInfo.
-func (oi ossObjInfo) IsDir() bool {
-	return oi.isDir
+func (zi zipFileInfo) IsDir() bool {
+	return zi.isDir
 }
 
 // ModTime implements fs.FileInfo.
-func (oi ossObjInfo) ModTime() time.Time {
-	return oi.modTime
+func (zi zipFileInfo) ModTime() time.Time {
+	return zi.modTime
 }
 
 // Mode implements fs.FileInfo.
-func (oi ossObjInfo) Mode() fs.FileMode {
-	return fs.ModePerm
+func (zi zipFileInfo) Mode() fs.FileMode {
+	return zi.mode
 }
 
-func (oi ossObjInfo) Name() string {
-	return oi.name
+func (zi zipFileInfo) Name() string {
+	return zi.name
 }
 
 // Size implements fs.FileInfo.
-func (oi ossObjInfo) Size() int64 {
-	return oi.size
+func (zi zipFileInfo) Size() int64 {
+	return zi.size
 }
 
 // Sys implements fs.FileInfo.
-func (oi ossObjInfo) Sys() any {
+func (zi zipFileInfo) Sys() any {
 	return nil
+}
+
+func NewZipFileInfo(isDir bool, name string, size int64, modTime time.Time, mode fs.FileMode) *zipFileInfo {
+	return &zipFileInfo{
+		isDir:   isDir,
+		name:    name,
+		size:    size,
+		modTime: modTime,
+		mode:    mode,
+	}
 }
 
 func getFileInfo(obj oss2.ObjectProperties) fs.FileInfo {
@@ -56,6 +67,7 @@ func getFileInfo(obj oss2.ObjectProperties) fs.FileInfo {
 	var name string
 	if _key[len(_key)-1] == "" {
 		isDir = true
+
 		if len(_key) > 1 {
 			name = _key[len(_key)-2]
 		} else {
@@ -65,10 +77,14 @@ func getFileInfo(obj oss2.ObjectProperties) fs.FileInfo {
 	} else {
 		name = _key[len(_key)-1]
 	}
-	return ossObjInfo{
+	return zipFileInfo{
 		name:    name,
 		isDir:   isDir,
 		size:    obj.Size,
 		modTime: oss2.ToTime(obj.LastModified),
 	}
+}
+
+type GetZipfileInfo interface {
+	ListFileInfo(handle func(*SrcOssFile))
 }
