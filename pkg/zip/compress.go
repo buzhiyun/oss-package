@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	"github.com/buzhiyun/oss-package/pkg/oss"
+	"github.com/buzhiyun/oss-package/pkg/progress"
 
 	"github.com/buzhiyun/go-utils/log"
 )
@@ -33,6 +34,7 @@ type zipOssToOss struct {
 	zipChan             chan SrcOssFile // 压缩队列
 	wg                  sync.WaitGroup
 	zipWg               sync.WaitGroup
+	options             *ZipOption
 }
 
 /**
@@ -54,6 +56,7 @@ func NewZipOssToOss(srcBucketName, zipFileKey string, downloadThreadCount, uploa
 		zipBucketName := _zippath[0]
 		zipKey := _zippath[1]
 		return &zipOssToOss{
+			options:             &DefaultZipOption,
 			srcBucketName:       srcBucketName,
 			zipBucketName:       zipBucketName,
 			zipFileKey:          zipKey,
@@ -105,7 +108,18 @@ func zipDirHandle(dirMap *map[string]any, dir string, handle func(dir string)) {
 /**
  * 压缩文件
  */
-func (z *zipOssToOss) Zip() {
+func (z *zipOssToOss) Zip(zipOptions ...func(*ZipOption)) {
+	for _, fn := range zipOptions {
+		fn(z.options)
+	}
+
+	var useProgress = z.options.ProgressBar
+	progressBar := progress.NewProgressBar(int64(z.options.TotalFileCount))
+	if useProgress {
+		log.SetLevel("error")
+		progress.EnableProgressBar()
+	}
+
 	zipfile, err := oss.NewMultipartUploadWriter(z.zipBucketName, z.zipFileKey, z.uploadThreadCount)
 	if err != nil {
 		return
@@ -130,6 +144,7 @@ func (z *zipOssToOss) Zip() {
 						return
 					}
 					z.downloadOssObj(&srcFile, dl)
+					progressBar.Incr()
 				}
 			}
 		}(i)
@@ -217,5 +232,9 @@ func (z *zipOssToOss) Zip() {
 
 	// 等待压缩线程退出
 	z.zipWg.Wait()
+
+	if useProgress {
+		log.SetLevel("info")
+	}
 
 }

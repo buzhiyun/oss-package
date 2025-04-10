@@ -21,6 +21,7 @@ func main() {
 	uploadThreadCount := flag.Int("ut", 3, "上传线程数")
 	job := flag.String("job", "", "job名称 类似 fx_download_all_342025034_20250331-0803-2869-2fe1-afaa5b952482_4971e00d-6d65-4f6f-8035-12db9037d0f7_ffe254de-44bd-4ded-add5-081ca8bd3c56_576F4CC622DF3EDF5C66558E6B693D90")
 	debug := flag.Bool("debug", false, "debug日志")
+	progressBar := flag.Bool("g", false, "是否显示进度条")
 	flag.Parse()
 
 	// windows 关闭日志颜色
@@ -55,7 +56,10 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	z.Zip()
+	z.Zip(func(zo *zip.ZipOption) {
+		zo.ProgressBar = *progressBar
+		zo.TotalFileCount = fxFile.GetFileCount()
+	})
 }
 
 func getExamFromJob(jobName string) (examguid string, template string, ok bool) {
