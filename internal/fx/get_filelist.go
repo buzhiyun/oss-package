@@ -28,14 +28,15 @@ type objectInfo struct {
 type FxZipIndexFile struct {
 	zip.GetZipfileInfo
 	// zipInfoTxt   string
-	examGuid       string
-	templateGuid   string
-	zipFileName    string
-	zipInfoFileKey string           // zipInfo文件在oss 的路径，从郑波接口上去拿
-	fileReadchan   chan *objectInfo // 给获取文件信息的线程缓冲读取oss文件的基础信息的
-	readWg         sync.WaitGroup
-	fileList       *[]objectInfo
-	fileCount      int
+	examGuid         string
+	templateGuid     string
+	zipFileName      string
+	zipInfoFileKey   string           // zipInfo文件在oss 的路径，从郑波接口上去拿
+	fileReadchan     chan *objectInfo // 给获取文件信息的线程缓冲读取oss文件的基础信息的
+	readWg           sync.WaitGroup
+	fileList         *[]objectInfo
+	fileCount        int
+	fetchThreadCount int
 }
 
 func (fx *FxZipIndexFile) ListFileInfo(handle func(fileInfo *zip.SrcOssFile)) {
@@ -52,6 +53,7 @@ func (fx *FxZipIndexFile) ListFileInfo(handle func(fileInfo *zip.SrcOssFile)) {
 	for i := 0; i < 20; i++ {
 		fx.readWg.Add(1)
 		go func(id int, handle func(fileInfo *zip.SrcOssFile)) {
+			dl := oss.NewObjDownloader(i)
 			for {
 				select {
 				case obj, ok := <-fx.fileReadchan:
@@ -63,7 +65,7 @@ func (fx *FxZipIndexFile) ListFileInfo(handle func(fileInfo *zip.SrcOssFile)) {
 					// 获取文件meta
 					var ossFileKey string
 					ossFileKey = obj.objectKey
-					result, err := oss.GetObjMeta(obj.bucketName, ossFileKey)
+					result, err := dl.GetObjMeta(obj.bucketName, ossFileKey)
 					if err != nil {
 						log.Errorf("[fx] 获取oss meta 失败 %s, %s", ossFileKey, err)
 						continue
@@ -76,7 +78,6 @@ func (fx *FxZipIndexFile) ListFileInfo(handle func(fileInfo *zip.SrcOssFile)) {
 						ObjKey:   &ossFileKey,
 						ZipDir:   &obj.zipDir,
 					})
-
 				}
 			}
 		}(i, handle)
@@ -220,9 +221,10 @@ func (fx *FxZipIndexFile) initZipFromFxService() {
 
 func NewFxZipFileInfoFromExam(examGuid, templateGuid string) (zipFileInfo *FxZipIndexFile) {
 	_fzi := &FxZipIndexFile{
-		examGuid:     examGuid,
-		templateGuid: templateGuid,
-		fileReadchan: make(chan *objectInfo, 100),
+		examGuid:         examGuid,
+		templateGuid:     templateGuid,
+		fetchThreadCount: 20,
+		fileReadchan:     make(chan *objectInfo, 100),
 	}
 	log.Infof("准备开始获取 examGuid: %s, template: %s 的数据", examGuid, templateGuid)
 	_fzi.initZipFromFxService()
@@ -238,8 +240,9 @@ func NexFxZipFileInfoFromZipKey(zipLongkey string) (zipFileInfo *FxZipIndexFile)
 
 	log.Infof("准备开始获取 %s 中的数据", zipLongkey)
 	_fzi := &FxZipIndexFile{
-		zipInfoFileKey: key,
-		fileReadchan:   make(chan *objectInfo, 100),
+		fetchThreadCount: 20,
+		zipInfoFileKey:   key,
+		fileReadchan:     make(chan *objectInfo, 100),
 	}
 	_fzi.fetchZipFile(bucket)
 	return _fzi
@@ -251,4 +254,8 @@ func (fx *FxZipIndexFile) GetZipFileName() string {
 
 func (fx *FxZipIndexFile) GetFileCount() int {
 	return fx.fileCount
+}
+
+func (fx *FxZipIndexFile) SetFetchThreadCount(threadCount int) {
+	fx.fetchThreadCount = threadCount
 }

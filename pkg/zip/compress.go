@@ -3,6 +3,7 @@ package zip
 import (
 	"archive/zip"
 	"bytes"
+	"compress/flate"
 	"errors"
 	"fmt"
 	"io"
@@ -117,8 +118,9 @@ func (z *zipOssToOss) Zip(zipOptions ...func(*ZipOption)) {
 	var useProgress = z.options.ProgressBar
 	progressBar := progress.NewProgressBar(int64(z.options.TotalFileCount))
 	if useProgress {
+
+		fmt.Printf("  下载中... 共计 %v 个文件\n", z.options.TotalFileCount)
 		log.SetLevel("error")
-		fmt.Println("  下载中...")
 		progress.EnableProgressBar()
 	}
 
@@ -130,6 +132,12 @@ func (z *zipOssToOss) Zip(zipOptions ...func(*ZipOption)) {
 	// 打开：zip文件
 	archive := zip.NewWriter(zipfile)
 	defer archive.Close()
+
+	// 设置：zip的压缩算法 压缩级别
+	archive.RegisterCompressor(zip.Deflate, func(out io.Writer) (io.WriteCloser, error) {
+		return flate.NewWriter(out, flate.BestSpeed)
+		// return flate.NewWriter(out, flate.BestSpeed)
+	})
 
 	for i := range z.downloadThreadCount {
 		log.Infof("[zip] downloadThread-%v 开始下载文件", i)

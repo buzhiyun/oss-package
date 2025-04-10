@@ -19,6 +19,7 @@ func main() {
 	fxZipIndexFile := flag.String("file", "", "分析中心那边zip索引文件的路径 格式类似: yjreport/arithmeticcenterNew/TempFile/tmp/20250220-0805-363e-1e0b-a06e4b386593/ac73818d-39c9-40a1-9aa5-c313ebac1a1c/zip-path-file.txt")
 	downloadThreadCount := flag.Int("dt", 10, "下载线程数")
 	uploadThreadCount := flag.Int("ut", 3, "上传线程数")
+	ft := flag.Int("ft", 10, "获取excel文件信息的线程数")
 	job := flag.String("job", "", "job名称 类似 fx_download_all_342025034_20250331-0803-2869-2fe1-afaa5b952482_4971e00d-6d65-4f6f-8035-12db9037d0f7_ffe254de-44bd-4ded-add5-081ca8bd3c56_576F4CC622DF3EDF5C66558E6B693D90")
 	debug := flag.Bool("debug", false, "debug日志")
 	progressBar := flag.Bool("g", false, "是否显示进度条")
@@ -48,6 +49,10 @@ func main() {
 	} else {
 		log.Fatal("【 job | file | examguid templateguid 】 必须输入期中一组")
 		return
+	}
+
+	if *ft != 10 {
+		fxFile.SetFetchThreadCount(*ft)
 	}
 
 	// fxFile := fx.NewFxZipFileInfo(*exam, *template)
