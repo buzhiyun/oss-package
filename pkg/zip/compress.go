@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
 	"io/fs"
 	"strings"
@@ -117,6 +118,7 @@ func (z *zipOssToOss) Zip(zipOptions ...func(*ZipOption)) {
 	progressBar := progress.NewProgressBar(int64(z.options.TotalFileCount))
 	if useProgress {
 		log.SetLevel("error")
+		fmt.Println("  下载中...")
 		progress.EnableProgressBar()
 	}
 
@@ -232,9 +234,4 @@ func (z *zipOssToOss) Zip(zipOptions ...func(*ZipOption)) {
 
 	// 等待压缩线程退出
 	z.zipWg.Wait()
-
-	if useProgress {
-		log.SetLevel("info")
-	}
-
 }

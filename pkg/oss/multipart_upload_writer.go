@@ -221,8 +221,11 @@ func (uw *multipartUploadWriter) Finished() {
 		return
 	}
 
+	log.SetLevel("info")
+
 	// 打印完成分片上传的结果
 	log.Infof("[UploadWriter] 结束分片上传请求结果 key: %s , Status: %s", *result.Key, result.Status)
 
-	log.Infof("下载地址 %s", strings.ReplaceAll(SignObj(uw.bucketName, *result.Key, time.Hour*48), "-internal.aliyuncs.com", ".aliyuncs.com"))
+	log.Infof("下载地址 %s", strings.ReplaceAll(strings.ReplaceAll(
+		SignObj(uw.bucketName, *result.Key, time.Hour*48), "-internal.aliyuncs.com", ".aliyuncs.com"), "http://", "https://"))
 }
