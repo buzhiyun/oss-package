@@ -10,6 +10,8 @@ import (
 
 	"github.com/aliyun/alibabacloud-oss-go-sdk-v2/oss"
 	"github.com/buzhiyun/go-utils/log"
+	"github.com/buzhiyun/oss-package/pkg/progress"
+	"github.com/gosuri/uiprogress"
 )
 
 type uploadReq struct {
@@ -47,7 +49,7 @@ func (uw *multipartUploadWriter) newPartNumber() int32 {
 
   - 分片上传Writer实例
 */
-func NewMultipartUploadWriter(bucketName, objectName string, threadCount int) (uw *multipartUploadWriter, err error) {
+func NewMultipartUploadWriter(bucketName, objectName string, threadCount int, viewChanBarName ...string) (uw *multipartUploadWriter, err error) {
 	// 初始化分片上传
 	// 定义上传ID
 	var uploadId string
@@ -79,6 +81,11 @@ func NewMultipartUploadWriter(bucketName, objectName string, threadCount int) (u
 	// _uw.finishChan = make(chan any, threadCount)
 	_uw.threads = threadCount
 
+	var uploadBar *uiprogress.Bar
+	if len(viewChanBarName) > 0 && len(viewChanBarName[0]) > 0 {
+		uploadBar = progress.NewProgressBar(threadCount*2, viewChanBarName[0])
+	}
+
 	// 启动上传线程
 	for i := 0; i < threadCount; i++ {
 		_uw.wg.Add(1)
@@ -92,6 +99,9 @@ func NewMultipartUploadWriter(bucketName, objectName string, threadCount int) (u
 						_uw.wg.Done()
 						// _uw.finishChan <- 1
 						return
+					}
+					if uploadBar != nil {
+						uploadBar.Set(len(_uw.uploadChan))
 					}
 					_uw.uploadPart(&req, threadId, c)
 				}

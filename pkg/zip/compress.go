@@ -13,6 +13,7 @@ import (
 
 	"github.com/buzhiyun/oss-package/pkg/oss"
 	"github.com/buzhiyun/oss-package/pkg/progress"
+	"github.com/gosuri/uiprogress"
 
 	"github.com/buzhiyun/go-utils/log"
 )
@@ -115,16 +116,24 @@ func (z *zipOssToOss) Zip(zipOptions ...func(*ZipOption)) {
 		fn(z.options)
 	}
 
-	var useProgress = z.options.ProgressBar
-	progressBar := progress.NewProgressBar(int64(z.options.TotalFileCount))
-	if useProgress {
+	var downChanBar *uiprogress.Bar
+	var zipChanBar *uiprogress.Bar
 
+	var useProgress = z.options.ProgressBar
+	var uploadBarName = ""
+	if useProgress {
 		fmt.Printf("  下载中... 共计 %v 个文件\n", z.options.TotalFileCount)
 		log.SetLevel("error")
 		progress.EnableProgressBar()
+		if z.options.ChannelBar {
+			// 创建：channel可观测进度条
+			downChanBar = progress.NewProgressBar(z.downloadThreadCount*2, "downloan chan")
+			zipChanBar = progress.NewProgressBar(z.downloadThreadCount*2, "zip chan")
+			uploadBarName = "upload chan"
+		}
 	}
 
-	zipfile, err := oss.NewMultipartUploadWriter(z.zipBucketName, z.zipFileKey, z.uploadThreadCount)
+	zipfile, err := oss.NewMultipartUploadWriter(z.zipBucketName, z.zipFileKey, z.uploadThreadCount, uploadBarName)
 	if err != nil {
 		return
 	}
@@ -132,6 +141,9 @@ func (z *zipOssToOss) Zip(zipOptions ...func(*ZipOption)) {
 	// 打开：zip文件
 	archive := zip.NewWriter(zipfile)
 	defer archive.Close()
+
+	// 打包进度
+	progressBar := progress.NewProgressBar(int(z.options.TotalFileCount))
 
 	// 设置：zip的压缩算法 压缩级别
 	archive.RegisterCompressor(zip.Deflate, func(out io.Writer) (io.WriteCloser, error) {
@@ -153,6 +165,9 @@ func (z *zipOssToOss) Zip(zipOptions ...func(*ZipOption)) {
 						log.Infof("[zip] downloadThread-%v 下载文件任务完成", i)
 						return
 					}
+					if downChanBar != nil {
+						downChanBar.Set(len(z.downloadChan))
+					}
 					z.downloadOssObj(&srcFile, dl)
 					progressBar.Incr()
 				}
@@ -162,6 +177,7 @@ func (z *zipOssToOss) Zip(zipOptions ...func(*ZipOption)) {
 
 	// 去拿oss目录下的文件列表
 	z.wg.Add(1)
+
 	go func() {
 		// oss.ListPathWithHandle(z.srcBucketName, z.srcPrefix, func(obj oss2.ObjectProperties) {
 		// 	log.Debugf("获取到 %s", *obj.Key)
@@ -189,6 +205,9 @@ func (z *zipOssToOss) Zip(zipOptions ...func(*ZipOption)) {
 					log.Infof("[zip] 压缩文件任务完成")
 					z.zipWg.Done()
 					return
+				}
+				if zipChanBar != nil {
+					zipChanBar.Set(len(z.zipChan))
 				}
 
 				// currentDir = *srcFile.ZipDir
