@@ -22,9 +22,9 @@
       -template string
             template guid
       -file string
-            分析中心那边zip索引文件的路径 格式类似: yjreport/arithmeticcenterNew/    TempFile/tmp/20250220-0805-363e-1e0b-a06e4b386593/    ac73818d-39c9-40a1-9aa5-c313ebac1a1c/zip-path-file.txt
+            分析中心那边zip索引文件的路径 格式类似: yjreport/arithmeticcenterNew/TempFile/tmp/20250220-0805-363e-1e0b-a06e4b386593/ac73818d-39c9-40a1-9aa5-c313ebac1a1c/zip-path-file.txt
       -job string
-            job名称 类似     fx_download_all_342025034_20250331-0803-2869-2fe1-afaa5b952482_4971e    00d-6d65-4f6f-8035-12db9037d0f7_ffe254de-44bd-4ded-add5-081ca8bd3c56    _576F4CC622DF3EDF5C66558E6B693D90
+            job名称 类似 fx_download_all_342025034_20250331-0803-2869-2fe1-afaa5b952482_4971e00d-6d65-4f6f-8035-12db9037d0f7_ffe254de-44bd-4ded-add5-081ca8bd3c56_576F4CC622DF3EDF5C66558E6B693D90
       -g bool
             是否显示进度条
       -zl int

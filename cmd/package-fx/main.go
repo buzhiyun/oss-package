@@ -22,7 +22,7 @@ func main() {
 	job := flag.String("job", "", "job名称 类似 fx_download_all_342025034_20250331-0803-2869-2fe1-afaa5b952482_4971e00d-6d65-4f6f-8035-12db9037d0f7_ffe254de-44bd-4ded-add5-081ca8bd3c56_576F4CC622DF3EDF5C66558E6B693D90")
 	debug := flag.Bool("debug", false, "debug日志")
 	progressBar := flag.Bool("g", false, "是否显示进度条")
-	chanView := flag.Bool("v", false, "是否显示channel 进度条")
+	chanView := flag.Bool("v", false, "是否显示channel使用状态条")
 	zipLevel := flag.Int("zl", 1, "zip压缩级别 0-9 ， 越高压缩越慢效果越好")
 	flag.Parse()
 
