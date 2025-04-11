@@ -210,6 +210,8 @@ func (fx *FxZipIndexFile) initZipFromFxService() {
 		log.Fatalf("[fx] fx.service 接口未拿到zip文件信息， %s", resp)
 		return
 	}
+	log.Infof("[fx] zipIndex 文件位置 %s", zipPackageResp.Data.OSSKey)
+
 	zipListfileBucket, zipListfileKey, ok := oss.GetOssKeyFromLongKey(zipPackageResp.Data.OSSKey)
 	if !ok {
 		log.Fatalf("[fx] zip文件信息不对劲 %s", zipPackageResp.Data.OSSKey)
@@ -229,7 +231,7 @@ func NewFxZipFileInfoFromExam(examGuid, templateGuid string) (zipFileInfo *FxZip
 		// fetchThreadCount: fetchThreadCount,
 		// fileReadchan:     make(chan *objectInfo, fetchThreadCount*2),
 	}
-	log.Infof("准备开始获取 examGuid: %s, template: %s 的数据", examGuid, templateGuid)
+	log.Infof("准备开始从fx.service获取 examGuid: %s, template: %s 的数据", examGuid, templateGuid)
 	_fzi.initZipFromFxService()
 	return _fzi
 }

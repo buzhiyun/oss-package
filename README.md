@@ -11,26 +11,24 @@
   ./package-oss -job 'fx_download_all_342025034_20250331-0803-2869-2fe1-afaa5b952482_4971e00d-6d65-4f6f-8035-12db9037d0f7_ffe254de-44bd-4ded-add5-081ca8bd3c56_576F4CC622DF3EDF5C66558E6B693D90' -dt 300 -ut 10 -g
 
   Usage of ./bin/package-oss:
-  -debug
-        debug日志
-  -dt int
-        下载线程数 (default 10)
-  -prefix string
-        要打包的oss路径 (default "excel/test/111")
-  -ut int
-        上传线程数 (default 3)
-  -zipkey string
-        打包后的zip文件路径 (default "excel/test/zip/111.zip")
-  -examguid string
-        考试guid
-  -template string
-        template guid
-  -file string
-        分析中心那边zip索引文件的路径 格式类似: yjreport/arithmeticcenterNew/TempFile/tmp/20250220-0805-363e-1e0b-a06e4b386593/ac73818d-39c9-40a1-9aa5-c313ebac1a1c/zip-path-file.txt
-  -job string
-        job名称 类似 fx_download_all_342025034_20250331-0803-2869-2fe1-afaa5b952482_4971e00d-6d65-4f6f-8035-12db9037d0f7_ffe254de-44bd-4ded-add5-081ca8bd3c56_576F4CC622DF3EDF5C66558E6B693D90
-  -g bool
-       是否显示进度条
+      -debug
+            debug日志
+      -dt int
+            下载线程数 (default 256)
+      -ut int
+            上传线程数 (default 8)
+      -examguid string
+            考试guid
+      -template string
+            template guid
+      -file string
+            分析中心那边zip索引文件的路径 格式类似: yjreport/arithmeticcenterNew/    TempFile/tmp/20250220-0805-363e-1e0b-a06e4b386593/    ac73818d-39c9-40a1-9aa5-c313ebac1a1c/zip-path-file.txt
+      -job string
+            job名称 类似     fx_download_all_342025034_20250331-0803-2869-2fe1-afaa5b952482_4971e    00d-6d65-4f6f-8035-12db9037d0f7_ffe254de-44bd-4ded-add5-081ca8bd3c56    _576F4CC622DF3EDF5C66558E6B693D90
+      -g bool
+            是否显示进度条
+      -zl int
+            zip压缩级别 0-9 ， 越高压缩越慢效果越好 (default 1)
   ```
 
 - 配置文件 config.yaml
