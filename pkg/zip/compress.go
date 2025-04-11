@@ -18,11 +18,19 @@ import (
 	"github.com/buzhiyun/go-utils/log"
 )
 
+// 下载线程传送给压缩线程的实体
 type SrcOssFile struct {
 	FileInfo fs.FileInfo // 给 zip 压缩header 用的
-	ZipDir   *string     // 给 zip 压缩所在的目录
-	ObjKey   *string     // oss文件key
-	data     *[]byte
+	// ZipDir   *string     // 给 zip 压缩所在的目录
+	// ObjKey   *string     // oss文件key
+	data *[]byte
+}
+
+// 列举文件方法传送给下载线程的实体
+type SrcFileProperties struct {
+	ZipPath *string
+	ZipDir  *string
+	ObjKey  *string
 }
 
 type zipOssToOss struct {
@@ -30,11 +38,11 @@ type zipOssToOss struct {
 	// srcPrefix           string
 	zipBucketName       string
 	zipFileKey          string
-	zipfileInfo         GetZipfileInfo  //  获取zip文件列表实体
-	downloadThreadCount int             // 下载线程数
-	uploadThreadCount   int             // 上传线程数
-	downloadChan        chan SrcOssFile // 下载队列    ，给下载线程用的，实际下载线程会用到 oss2.ObjectProperties 里面的 Key  Size  LastModified  三个属性
-	zipChan             chan SrcOssFile // 压缩队列
+	zipfileInfo         GetZipfileInfo         //  获取zip文件列表实体
+	downloadThreadCount int                    // 下载线程数
+	uploadThreadCount   int                    // 上传线程数
+	downloadChan        chan SrcFileProperties // 下载队列
+	zipChan             chan SrcOssFile        // 压缩队列
 	wg                  sync.WaitGroup
 	zipWg               sync.WaitGroup
 	options             *ZipOption
@@ -66,7 +74,7 @@ func NewZipOssToOss(srcBucketName, zipFileKey string, downloadThreadCount, uploa
 			downloadThreadCount: downloadThreadCount,
 			uploadThreadCount:   uploadThreadCount,
 			zipfileInfo:         zipfileInfoInstance,
-			downloadChan:        make(chan SrcOssFile, downloadThreadCount*2),
+			downloadChan:        make(chan SrcFileProperties, downloadThreadCount*2),
 			zipChan:             make(chan SrcOssFile, downloadThreadCount*2),
 		}, nil
 	}
@@ -78,17 +86,23 @@ func NewZipOssToOss(srcBucketName, zipFileKey string, downloadThreadCount, uploa
 /**
  * 下载oss文件
  */
-func (z *zipOssToOss) downloadOssObj(obj *SrcOssFile, dl *oss.ObjDownloader) {
+func (z *zipOssToOss) downloadOssObj(obj *SrcFileProperties, dl *oss.ObjDownloader) {
 	// log.Infof("[zip] 下载文件")
-	data, err := dl.Download(z.srcBucketName, *obj.ObjKey)
+	data, info, err := dl.Download(z.srcBucketName, *obj.ObjKey)
 	if err != nil {
 		log.Errorf("[zip] downloadThread-%v 下载文件失败", dl.GetId())
 		return
 	}
+
+	// 处理生成压缩需要的文件信息
+
 	// 丢入压缩队列
 	// fi := getFileInfo(obj)
-	obj.data = &data
-	z.zipChan <- *obj
+	_obj := &SrcOssFile{
+		FileInfo: getFileInfoFromOssFileProperties(info, *obj.ZipPath),
+		data:     &data,
+	}
+	z.zipChan <- *_obj
 }
 
 func zipDirHandle(dirMap *map[string]any, dir string, handle func(dir string)) {
@@ -146,10 +160,17 @@ func (z *zipOssToOss) Zip(zipOptions ...func(*ZipOption)) {
 	progressBar := progress.NewProgressBar(int(z.options.TotalFileCount))
 
 	// 设置：zip的压缩算法 压缩级别
-	archive.RegisterCompressor(zip.Deflate, func(out io.Writer) (io.WriteCloser, error) {
-		return flate.NewWriter(out, flate.BestSpeed)
-		// return flate.NewWriter(out, flate.BestSpeed)
-	})
+	if z.options.ZipLevel == 1 {
+		archive.RegisterCompressor(zip.Deflate, func(out io.Writer) (io.WriteCloser, error) {
+			return flate.NewWriter(out, flate.BestSpeed)
+			// return flate.NewWriter(out, flate.NoCompression)
+		})
+	} else {
+		archive.RegisterCompressor(zip.Deflate, func(out io.Writer) (io.WriteCloser, error) {
+			return flate.NewWriter(out, z.options.ZipLevel)
+			// return flate.NewWriter(out, flate.NoCompression)
+		})
+	}
 
 	for i := range z.downloadThreadCount {
 		log.Infof("[zip] downloadThread-%v 开始下载文件", i)
@@ -183,7 +204,7 @@ func (z *zipOssToOss) Zip(zipOptions ...func(*ZipOption)) {
 		// 	log.Debugf("获取到 %s", *obj.Key)
 		// 	z.downloadChan <- obj
 		// })
-		z.zipfileInfo.ListFileInfo(func(obj *SrcOssFile) {
+		z.zipfileInfo.ListFileInfo(func(obj *SrcFileProperties) {
 			log.Debugf("获取到 %s", *obj.ObjKey)
 			z.downloadChan <- *obj
 		})
@@ -212,7 +233,7 @@ func (z *zipOssToOss) Zip(zipOptions ...func(*ZipOption)) {
 
 				// currentDir = *srcFile.ZipDir
 
-				log.Debugf("[zip] 压缩 %s %s", *srcFile.ZipDir, *srcFile.ObjKey)
+				log.Debugf("[zip] 压缩 %s", srcFile.FileInfo.Name())
 				fi := srcFile.FileInfo
 
 				// //检查创建目录

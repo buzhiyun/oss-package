@@ -24,8 +24,9 @@ func NewObjDownloader(id int) *ObjDownloader {
 	}
 }
 
-func (d *ObjDownloader) Download(bucketName string, objPath string) (data []byte, err error) {
-	data, err = GetFileSimple(bucketName, objPath, d.client)
+func (d *ObjDownloader) Download(bucketName string, objPath string) (data []byte, info OssFileProperties, err error) {
+	data, info, err = GetFileSimple(bucketName, objPath, d.client)
+
 	return
 }
 

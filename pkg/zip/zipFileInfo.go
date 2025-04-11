@@ -6,6 +6,7 @@ import (
 	"time"
 
 	oss2 "github.com/aliyun/alibabacloud-oss-go-sdk-v2/oss"
+	"github.com/buzhiyun/oss-package/pkg/oss"
 )
 
 /**
@@ -85,6 +86,17 @@ func getFileInfo(obj oss2.ObjectProperties) fs.FileInfo {
 	}
 }
 
+func getFileInfoFromOssFileProperties(info oss.OssFileProperties, zipFileName string) fs.FileInfo {
+
+	return zipFileInfo{
+		name:    zipFileName,
+		isDir:   false,
+		size:    info.Length,
+		modTime: *info.ModTime,
+	}
+
+}
+
 type GetZipfileInfo interface {
-	ListFileInfo(handle func(*SrcOssFile))
+	ListFileInfo(handle func(*SrcFileProperties))
 }

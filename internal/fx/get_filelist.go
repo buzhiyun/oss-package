@@ -3,8 +3,6 @@ package fx
 import (
 	"bufio"
 	"fmt"
-	"io/fs"
-	"sync"
 
 	"strings"
 
@@ -12,9 +10,7 @@ import (
 	"github.com/buzhiyun/go-utils/http"
 	"github.com/buzhiyun/go-utils/log"
 	"github.com/buzhiyun/oss-package/pkg/oss"
-	"github.com/buzhiyun/oss-package/pkg/progress"
 	"github.com/buzhiyun/oss-package/pkg/zip"
-	"github.com/gosuri/uiprogress"
 	jsoniter "github.com/json-iterator/go"
 )
 
@@ -29,77 +25,78 @@ type objectInfo struct {
 type FxZipIndexFile struct {
 	zip.GetZipfileInfo
 	// zipInfoTxt   string
-	examGuid         string
-	templateGuid     string
-	zipFileName      string
-	zipInfoFileKey   string           // zipInfo文件在oss 的路径，从郑波接口上去拿
-	fileReadchan     chan *objectInfo // 给获取文件信息的线程缓冲读取oss文件的基础信息的
-	readWg           sync.WaitGroup
-	fileList         *[]objectInfo
-	fileCount        int
-	fetchThreadCount int
-	bar              *uiprogress.Bar
+	examGuid       string
+	templateGuid   string
+	zipFileName    string
+	zipInfoFileKey string // zipInfo文件在oss 的路径，从郑波接口上去拿
+	// fileReadchan     chan *objectInfo // 给获取文件信息的线程缓冲读取oss文件的基础信息的
+	// readWg           sync.WaitGroup
+	fileList  *[]objectInfo
+	fileCount int
+	// fetchThreadCount int
+	// bar              *uiprogress.Bar
 }
 
-func (fx *FxZipIndexFile) ListFileInfo(handle func(fileInfo *zip.SrcOssFile)) {
-	// oss 中文件位置
-	zipInfoTxt, err := oss.GetObjReader("yjreport", fx.zipInfoFileKey)
-	if err != nil {
-		log.Errorf("[fx] 获取zip-file.txt 失败%s, %s", fx.zipInfoFileKey, err)
-		return
-	}
-	defer zipInfoTxt.Close()
-	log.Infof("[fx] 读取 %s", fx.zipInfoFileKey)
-
-	// 启动多个线程去获取文件信息
-	for i := 0; i < 20; i++ {
-		fx.readWg.Add(1)
-		go func(id int, handle func(fileInfo *zip.SrcOssFile)) {
-			dl := oss.NewObjDownloader(i)
-			for {
-				select {
-				case obj, ok := <-fx.fileReadchan:
-					if !ok {
-						fx.readWg.Done()
-						log.Infof("[fx] 获取metadata线程-%v 完成", id)
-						return
-					}
-					if fx.bar != nil {
-						fx.bar.Set(len(fx.fileReadchan))
-					}
-
-					// 获取文件meta
-					var ossFileKey string
-					ossFileKey = obj.objectKey
-					result, err := dl.GetObjMeta(obj.bucketName, ossFileKey)
-					if err != nil {
-						log.Errorf("[fx] 获取oss meta 失败 %s, %s", ossFileKey, err)
-						continue
-					}
-					// log.Debugf("srcKey: %s, lastModified: %s, contentLength: %d", srcKey, *result.LastModified, result.ContentLength)
-					_filename := strings.Split(ossFileKey, "/")
-					filename := fmt.Sprintf("%s/%s", obj.zipDir, _filename[len(_filename)-1])
-					handle(&zip.SrcOssFile{
-						FileInfo: zip.NewZipFileInfo(false, filename, result.ContentLength, *result.LastModified, fs.ModePerm),
-						ObjKey:   &ossFileKey,
-						ZipDir:   &obj.zipDir,
-					})
-				}
-			}
-		}(i, handle)
-
-		// log.Debugf()
-	}
+func (fx *FxZipIndexFile) ListFileInfo(handle func(fileInfo *zip.SrcFileProperties)) {
 
 	for _, obj := range *fx.fileList {
-		fx.fileReadchan <- &obj
+		_filename := strings.Split(obj.objectKey, "/")
+		filename := fmt.Sprintf("%s/%s", obj.zipDir, _filename[len(_filename)-1])
+		handle(&zip.SrcFileProperties{
+			ZipDir:  &obj.zipDir,
+			ZipPath: &filename,
+			ObjKey:  &obj.objectKey,
+		})
 	}
+	// // 启动多个线程去获取文件信息
+	// for i := 0; i < 20; i++ {
+	// 	fx.readWg.Add(1)
+	// 	go func(id int, handle func(fileInfo *zip.SrcOssFile)) {
+	// 		dl := oss.NewObjDownloader(i)
+	// 		for {
+	// 			select {
+	// 			case obj, ok := <-fx.fileReadchan:
+	// 				if !ok {
+	// 					fx.readWg.Done()
+	// 					log.Infof("[fx] 获取metadata线程-%v 完成", id)
+	// 					return
+	// 				}
+	// 				if fx.bar != nil {
+	// 					fx.bar.Set(len(fx.fileReadchan))
+	// 				}
 
-	// 当读取完成后
-	// 关闭文件读取通道
-	close(fx.fileReadchan)
-	// 等待所有线程完成
-	fx.readWg.Wait()
+	// 				// 获取文件meta
+	// 				var ossFileKey string
+	// 				ossFileKey = obj.objectKey
+	// 				result, err := dl.GetObjMeta(obj.bucketName, ossFileKey)
+	// 				if err != nil {
+	// 					log.Errorf("[fx] 获取oss meta 失败 %s, %s", ossFileKey, err)
+	// 					continue
+	// 				}
+	// 				// log.Debugf("srcKey: %s, lastModified: %s, contentLength: %d", srcKey, *result.LastModified, result.ContentLength)
+	// 				_filename := strings.Split(ossFileKey, "/")
+	// 				filename := fmt.Sprintf("%s/%s", obj.zipDir, _filename[len(_filename)-1])
+	// 				handle(&zip.SrcOssFile{
+	// 					FileInfo: zip.NewZipFileInfo(false, filename, result.ContentLength, *result.LastModified, fs.ModePerm),
+	// 					ObjKey:   &ossFileKey,
+	// 					ZipDir:   &obj.zipDir,
+	// 				})
+	// 			}
+	// 		}
+	// 	}(i, handle)
+
+	// 	// log.Debugf()
+	// }
+
+	// for _, obj := range *fx.fileList {
+	// 	fx.fileReadchan <- &obj
+	// }
+
+	// // 当读取完成后
+	// // 关闭文件读取通道
+	// close(fx.fileReadchan)
+	// // 等待所有线程完成
+	// fx.readWg.Wait()
 
 }
 
@@ -225,19 +222,19 @@ func (fx *FxZipIndexFile) initZipFromFxService() {
 
 }
 
-func NewFxZipFileInfoFromExam(examGuid, templateGuid string, fetchThreadCount int) (zipFileInfo *FxZipIndexFile) {
+func NewFxZipFileInfoFromExam(examGuid, templateGuid string) (zipFileInfo *FxZipIndexFile) {
 	_fzi := &FxZipIndexFile{
-		examGuid:         examGuid,
-		templateGuid:     templateGuid,
-		fetchThreadCount: fetchThreadCount,
-		fileReadchan:     make(chan *objectInfo, fetchThreadCount*2),
+		examGuid:     examGuid,
+		templateGuid: templateGuid,
+		// fetchThreadCount: fetchThreadCount,
+		// fileReadchan:     make(chan *objectInfo, fetchThreadCount*2),
 	}
 	log.Infof("准备开始获取 examGuid: %s, template: %s 的数据", examGuid, templateGuid)
 	_fzi.initZipFromFxService()
 	return _fzi
 }
 
-func NexFxZipFileInfoFromZipKey(zipLongkey string, fetchThreadCount int) (zipFileInfo *FxZipIndexFile) {
+func NexFxZipFileInfoFromZipKey(zipLongkey string) (zipFileInfo *FxZipIndexFile) {
 	bucket, key, ok := oss.GetOssKeyFromLongKey(zipLongkey)
 	if !ok {
 		log.Fatalf("[fx] zip文件key不正常 %s", zipLongkey)
@@ -246,9 +243,9 @@ func NexFxZipFileInfoFromZipKey(zipLongkey string, fetchThreadCount int) (zipFil
 
 	log.Infof("准备开始获取 %s 中的数据", zipLongkey)
 	_fzi := &FxZipIndexFile{
-		fetchThreadCount: fetchThreadCount,
-		zipInfoFileKey:   key,
-		fileReadchan:     make(chan *objectInfo, fetchThreadCount*2),
+		// fetchThreadCount: fetchThreadCount,
+		zipInfoFileKey: key,
+		// fileReadchan:     make(chan *objectInfo, fetchThreadCount*2),
 	}
 	_fzi.fetchZipFile(bucket)
 	return _fzi
@@ -262,6 +259,6 @@ func (fx *FxZipIndexFile) GetFileCount() int {
 	return fx.fileCount
 }
 
-func (fx *FxZipIndexFile) EnableChanBar() {
-	fx.bar = progress.NewProgressBar(fx.fetchThreadCount*2, "fetchmeta chan")
-}
+// func (fx *FxZipIndexFile) EnableChanProgressBar() {
+// 	fx.bar = progress.NewProgressBar(fx.fetchThreadCount*2, "fetchmeta chan")
+// }

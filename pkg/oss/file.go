@@ -9,12 +9,17 @@ import (
 	"github.com/buzhiyun/go-utils/log"
 )
 
+type OssFileProperties struct {
+	Length  int64
+	ModTime *time.Time
+	Md5     *string
+}
+
 /*
 *
   - 获取文件
 */
-func GetFileSimple(bucketName, objectName string, client ...*oss.Client) (data []byte, err error) {
-
+func GetFileSimple(bucketName, objectName string, client ...*oss.Client) (data []byte, info OssFileProperties, err error) {
 	// 创建获取对象的请求
 	request := &oss.GetObjectRequest{
 		Bucket: oss.Ptr(bucketName), // 存储空间名称
@@ -33,6 +38,11 @@ func GetFileSimple(bucketName, objectName string, client ...*oss.Client) (data [
 	data, err = io.ReadAll(result.Body)
 	if err != nil {
 		log.Errorf("读取obj异常, %v", err)
+	}
+	info = OssFileProperties{
+		Length:  result.ContentLength,
+		ModTime: result.LastModified,
+		Md5:     result.ContentMD5,
 	}
 	return
 }
