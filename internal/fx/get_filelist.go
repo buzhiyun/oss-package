@@ -19,7 +19,6 @@ var json = jsoniter.ConfigCompatibleWithStandardLibrary
 type objectInfo struct {
 	bucketName string
 	objectKey  string
-	zipDir     string
 }
 
 type FxZipIndexFile struct {
@@ -31,7 +30,7 @@ type FxZipIndexFile struct {
 	zipInfoFileKey string // zipInfo文件在oss 的路径，从郑波接口上去拿
 	// fileReadchan     chan *objectInfo // 给获取文件信息的线程缓冲读取oss文件的基础信息的
 	// readWg           sync.WaitGroup
-	fileList  *[]objectInfo
+	fileList  *map[string]objectInfo // key: zipPath, value: bucketName, objectKey
 	fileCount int
 	// fetchThreadCount int
 	// bar              *uiprogress.Bar
@@ -39,12 +38,12 @@ type FxZipIndexFile struct {
 
 func (fx *FxZipIndexFile) ListFileInfo(handle func(fileInfo *zip.SrcFileProperties)) {
 
-	for _, obj := range *fx.fileList {
-		_filename := strings.Split(obj.objectKey, "/")
-		filename := fmt.Sprintf("%s/%s", obj.zipDir, _filename[len(_filename)-1])
+	for zipPath, obj := range *fx.fileList {
+		// _filename := strings.Split(obj.objectKey, "/")
+		// filename := fmt.Sprintf("%s/%s", obj.zipDir, _filename[len(_filename)-1])
 		handle(&zip.SrcFileProperties{
-			ZipDir:  &obj.zipDir,
-			ZipPath: &filename,
+			// ZipDir:  &obj.zipDir,
+			ZipPath: &zipPath,
 			ObjKey:  &obj.objectKey,
 		})
 	}
@@ -121,7 +120,7 @@ func (fx *FxZipIndexFile) fetchZipFile(bucket string) {
 
 	// 创建一个 Scanner 来逐行读取文件
 	scanner := bufio.NewScanner(zipInfoTxt)
-	var fileList []objectInfo
+	var fileList = make(map[string]objectInfo)
 	lineNumber := 0
 	// 逐行读取文件内容
 	firstLine := true
@@ -153,11 +152,19 @@ func (fx *FxZipIndexFile) fetchZipFile(bucket string) {
 
 			srcBucket, srcKey := _objKey[0], _objKey[1]
 
-			fileList = append(fileList, objectInfo{
-				bucketName: srcBucket,
-				objectKey:  srcKey,
-				zipDir:     zipdir,
-			})
+			_filename := strings.Split(srcKey, "/")
+			filename := fmt.Sprintf("%s/%s", zipdir, _filename[len(_filename)-1])
+
+			_, ok := fileList[filename]
+			if ok {
+				log.Warnf("[fx] 文件重复 第 %d 行: %s", lineNumber, scanner.Text())
+			} else {
+				fileList[filename] = objectInfo{
+					bucketName: srcBucket,
+					objectKey:  srcKey,
+				}
+			}
+
 		}
 	}
 	// 检查是否在读取过程中发生错误

@@ -29,8 +29,8 @@ type SrcOssFile struct {
 // 列举文件方法传送给下载线程的实体
 type SrcFileProperties struct {
 	ZipPath *string
-	ZipDir  *string
-	ObjKey  *string
+	// ZipDir  *string
+	ObjKey *string
 }
 
 type zipOssToOss struct {

@@ -87,10 +87,13 @@ func getFileInfo(obj oss2.ObjectProperties) fs.FileInfo {
 }
 
 func getFileInfoFromOssFileProperties(info oss.OssFileProperties, zipFileName string) fs.FileInfo {
-
+	var isDir = false
+	if strings.HasSuffix(zipFileName, "/") {
+		isDir = true
+	}
 	return zipFileInfo{
 		name:    zipFileName,
-		isDir:   false,
+		isDir:   isDir,
 		size:    info.Length,
 		modTime: *info.ModTime,
 	}

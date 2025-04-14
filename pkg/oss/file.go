@@ -32,12 +32,14 @@ func GetFileSimple(bucketName, objectName string, client ...*oss.Client) (data [
 	})
 	if err != nil {
 		log.Errorf("下载obj异常, %v", err)
+		return
 	}
 	defer result.Body.Close() // 确保在函数结束时关闭响应体
 	// 一次性读取整个文件内容
 	data, err = io.ReadAll(result.Body)
 	if err != nil {
 		log.Errorf("读取obj异常, %v", err)
+		return
 	}
 	info = OssFileProperties{
 		Length:  result.ContentLength,
